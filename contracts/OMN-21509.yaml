@@ -1,0 +1,95 @@
+---
+schema_version: "1.0.0"
+ticket_id: OMN-21509
+title: "T-P1b: design-record check moved to omnibase_core"
+summary: The predicate of the merged design-record check (OMN-21460), its empty-detector set and its gap
+  pattern become a pure core handler whose rule tables are the parameters of design_record.validation.yaml.
+  This contract binds the omnibase_core half; the omnimarket caller is the child ticket T-P1b-call and
+  waits on a core release adopted by T-Q5.
+is_seam_ticket: false
+interface_change: false
+interfaces_touched: []
+requirements:
+  - id: req-omn21509-design-record-check-in-core
+    statement: The design-record check is core validator logic in the generic validator format, with every
+      rule table held as contract data, so a caller collects the text, calls the checker and enforces
+      its verdict.
+    acceptance:
+      - id: AC1
+        statement: "AC1: The core checker reproduces the merged check's verdicts on the merged task's
+          fixtures, and the omnimarket node returns the checker's issues unchanged -- falsifier: the merged
+          task's tests, run against the caller after the move"
+      - id: AC2
+        statement: "AC2: The omnimarket node holds no predicate and no rule table -- falsifier: T-Q6's
+          validator over the node's package counts zero"
+      - id: AC3
+        statement: "AC3: Configuration: every rule table that was a module constant is the checker's `.validation.yaml`
+          contract -- falsifier: a fixture contract that removes one entry changes the verdict on the
+          fixture that entry catches"
+      - id: AC4
+        statement: "AC4: Bindings: pure -- falsifier: byte-identical results in process and through the
+          local in-process entry of the parity harness (T-B2)"
+evidence_requirements:
+  - kind: tests
+    description: The handler reproduces the merged verdict cases on the merged fixture, drops or adds
+      one contract table entry and changes the verdict, imports no clock, file or network module, and
+      gives byte-identical results direct and through the validator entry.
+    command: uv run pytest tests/unit/handlers/test_handler_design_record_check.py -q -o addopts=''
+emergency_bypass:
+  enabled: false
+  justification: ''
+  follow_up_ticket_id: ''
+dod_evidence:
+  - id: dod-omn21509-ac1-core-verdicts
+    description: The core handler gives the merged check's verdicts on the merged cases and the copied
+      section 11.3 fixture. The caller half of AC1 is bound by T-P1b-call after the core release is adopted.
+    source: manual
+    checks:
+      - check_type: test_passes
+        check_value: uv run pytest tests/unit/handlers/test_handler_design_record_check.py -q -o addopts=''
+          -k "refused or accepted or fixture or exit_code or issue_count or error_naming"
+        cwd: ${OMNI_HOME}/omnibase_core
+    binds_ac: [AC1]
+  - id: dod-omn21509-ac2-no-rule-table-in-handler
+    description: The core handler module holds no rule-table entry. The omnimarket node's half of AC2
+      is bound by T-P1b-call and counted by T-Q6.
+    source: manual
+    checks:
+      - check_type: test_passes
+        check_value: uv run pytest tests/unit/handlers/test_handler_design_record_check.py -q -o addopts=''
+          -k "holds_no_rule_table or committed_contract_holds"
+        cwd: ${OMNI_HOME}/omnibase_core
+    binds_ac: [AC2]
+  - id: dod-omn21509-ac3-configuration
+    description: Removing an empty-detector entry, a severity level or the gap pattern, adding a level,
+      or disabling a rule in a fixture contract changes the verdict on the fixture that entry catches,
+      and a contract missing a rule fails closed.
+    source: manual
+    checks:
+      - check_type: test_passes
+        check_value: uv run pytest tests/unit/handlers/test_handler_design_record_check.py -q -o addopts=''
+          -k "removing or changing or severity_four or disabled or fails_closed"
+        cwd: ${OMNI_HOME}/omnibase_core
+    binds_ac: [AC3]
+  - id: dod-omn21509-ac4-bindings-pure
+    description: The handler module imports no os, pathlib, time, datetime, random, socket, subprocess,
+      urllib or logging module, and the result is byte-identical direct, repeated and through the validator
+      entry. The parity harness of T-B2 is not built; its local entry is bound when it lands.
+    source: manual
+    checks:
+      - check_type: test_passes
+        check_value: uv run pytest tests/unit/handlers/test_handler_design_record_check.py -q -o addopts=''
+          -k "is_pure or byte_identical"
+        cwd: ${OMNI_HOME}/omnibase_core
+    binds_ac: [AC4]
+  - id: dod-omn21509-delegation-join
+    description: The code in the head was drafted by Codex thread 01a1851d-2df2-7f63-b61e-03cccde5216e
+      and the commit message by onex-delegated run 8271fdc1-2c5e-4080-97c4-ca701f66730e; the head's message
+      carries both ids and the run's receipt names the ticket.
+    source: manual
+    checks:
+      - check_type: command
+        check_value: git log -1 --format=%B | grep -q "01a1851d-2df2-7f63-b61e-03cccde5216e" && git log
+          -1 --format=%B | grep -q "8271fdc1-2c5e-4080-97c4-ca701f66730e" && grep -q "OMN-21509" "${OMNI_HOME}/.onex_state/harness-delegate/8271fdc1-2c5e-4080-97c4-ca701f66730e/receipt.json"
+        cwd: ${OMNI_HOME}/omnibase_core
+    binds_ac: [AC1]
